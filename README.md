@@ -1,63 +1,159 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400"></a></p>
+--
+---
 
-<p align="center">
-<a href="https://travis-ci.org/laravel/framework"><img src="https://travis-ci.org/laravel/framework.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+## Enable broadcast
 
-## About Laravel
+    config\app.php
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+```text
+App\Providers\BroadcastServiceProvider::class,
+```
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+## .env
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+```text
 
-## Learning Laravel
+BROADCAST_DRIVER=pusher
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework.
+PUSHER_APP_ID=1247868
+PUSHER_APP_KEY=cba9f63d3484b2f22a09
+PUSHER_APP_SECRET=24f3150b8f04c90f09ce
+PUSHER_APP_CLUSTER=ap2 
 
-If you don't feel like reading, [Laracasts](https://laracasts.com) can help. Laracasts contains over 1500 video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
+MIX_PUSHER_APP_KEY="${PUSHER_APP_KEY}"
+MIX_PUSHER_APP_CLUSTER="${PUSHER_APP_CLUSTER}"
 
-## Laravel Sponsors
+```
 
-We would like to extend our thanks to the following sponsors for funding Laravel development. If you are interested in becoming a sponsor, please visit the Laravel [Patreon page](https://patreon.com/taylorotwell).
+```text
+composer require pusher/pusher-php-server "~4.0"
+```
 
-### Premium Partners
+https://laravel.com/docs/7.x/broadcasting#driver-prerequisites
+https://laravel.com/docs/8.x/broadcasting#installing-laravel-echo
 
-- **[Vehikl](https://vehikl.com/)**
-- **[Tighten Co.](https://tighten.co)**
-- **[Kirschbaum Development Group](https://kirschbaumdevelopment.com)**
-- **[64 Robots](https://64robots.com)**
-- **[Cubet Techno Labs](https://cubettech.com)**
-- **[Cyber-Duck](https://cyber-duck.co.uk)**
-- **[Many](https://www.many.co.uk)**
-- **[Webdock, Fast VPS Hosting](https://www.webdock.io/en)**
-- **[DevSquad](https://devsquad.com)**
-- **[Curotec](https://www.curotec.com/services/technologies/laravel/)**
-- **[OP.GG](https://op.gg)**
-- **[CMS Max](https://www.cmsmax.com/)**
+```text
+npm install --save-dev laravel-echo pusher-js
+```
 
-## Contributing
+````text
+import Echo from 'laravel-echo';
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+window.Pusher = require('pusher-js');
 
-## Code of Conduct
+window.Echo = new Echo({
+    broadcaster: 'pusher',
+    key: process.env.MIX_PUSHER_APP_KEY,
+    cluster: process.env.MIX_PUSHER_APP_CLUSTER,
+    forceTLS: true
+});
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
+````
 
-## Security Vulnerabilities
+# webpack
 
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
+```text
+require('dotenv').config();
+```
 
-## License
+# EventServiceProvider.php
 
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+```text
+protected $listen = [
+        'App\Events\NewChatMessage' =>[
+            'App\Listeners\SendChatMessageNotification'
+        ]
+    ];
+```
+
+# cmd: php artisan event:generate
+
+    automatically create
+
+```text
+app/Events/NewChatMessage.php
+app/Listeners/SendChatMessageNotification.php
+```
+
+# app/Events/NewChatMessage.php
+
+```text
+class NewChatMessage implements ShouldBroadcast
+{
+    //Todo: miss -> implements ShouldBroadcast
+    
+    public $chatMessage;
+ 
+    public function __construct(ChatMessage $chatMessage)
+    {
+        $this->chatMessage = $chatMessage;
+    }
+    
+    public function broadcastOn()
+    {
+        return new PrivateChannel('chat.' . $this->chatMessage->chat_room_id);
+    }   
+```
+
+Controller new message store
+
+```text
+broadcast(new NewChatMessage($newMessage))->toOthers();
+```
+
+channels.php
+
+```text
+
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Broadcast;
+
+Broadcast::channel('chat.{roomId}', function ($user, $roomId) {
+    if (Auth::check()) {
+        return [
+            'id' => $user->id,
+            'name' => $user->name
+        ];
+    }
+});
+
+
+```
+
+## Vue js
+
+### container.vue
+
+```vue
+
+<script>
+export default {
+    methods: {
+        //Todo: Step 3
+        setRoom(room) {
+            this.currentRoom = room;
+            //Todo: Step 8 remove getMessages
+            // this.getMessages();
+        },
+        
+        connect() {
+            if (this.currentRoom.id) {
+                let vm = this;
+                //Todo: Step 8.1
+                this.getMessages();
+                window.Echo.private("chat." + this.currentRoom.id)
+                    .listen('.message.new', e => {
+                        vm.getMessages();
+                    });
+            }
+        }
+    },
+    watch() {
+        currentRoom()
+        {
+            this.connect();
+        }
+    },
+}
+</script>
+```
