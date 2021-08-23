@@ -115,7 +115,7 @@ export default {
                 console.log(e);
                 console.log(e.chatMessage);
                 this.messages.push(e.chatMessage);
-                alert('message.new')
+                // alert('message.new')
                 this.getMessages();
             });
     },

@@ -157,3 +157,8 @@ export default {
 }
 </script>
 ```
+[Real-Time Chat with Laravel, Vue.js & Pusher](https://www.youtube.com/watch?v=CkRGJC0ytdU)
+
+![img.png](img.png)
+
+![img_1.png](img_1.png)
